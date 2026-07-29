@@ -1,0 +1,93 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS Serverless Data Engineering Pipeline (Raw -> Processed S3 -> Glue -> Athena)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod]
+
+Resources:
+  # 1. S3 Storage Buckets
+  RawS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "aws-data-pipeline-raw-${AWS::AccountId}-${Environment}"
+      VersioningConfiguration:
+        Status: Enabled
+
+  ProcessedS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "aws-data-pipeline-processed-${AWS::AccountId}-${Environment}"
+      VersioningConfiguration:
+        Status: Enabled
+
+  # 2. Ingestion Lambda Function
+  IngesterLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "data-pipeline-ingester-${Environment}"
+      CodeUri: ../src/
+      Handler: ingester.lambda_handler
+      Runtime: python3.11
+      Timeout: 30
+      Environment:
+        Variables:
+          RAW_S3_BUCKET: !Ref RawS3Bucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref RawS3Bucket
+      Events:
+        HourlySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+            Enabled: true
+
+  # 3. Transformer Lambda Function
+  TransformerLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "data-pipeline-transformer-${Environment}"
+      CodeUri: ../src/
+      Handler: transformer.lambda_handler
+      Runtime: python3.11
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          PROCESSED_S3_BUCKET: !Ref ProcessedS3Bucket
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref RawS3Bucket
+        - S3CrudPolicy:
+            BucketName: !Ref ProcessedS3Bucket
+
+  # 4. Glue Data Catalog Database
+  GlueWeatherDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Sub "weather_analytics_db_${Environment}"
+        Description: "Catalog database for processed weather parquet dataset"
+
+  # 5. Amazon Athena Workgroup
+  AthenaWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: !Sub "WeatherAnalyticsWorkgroup-${Environment}"
+      State: ENABLED
+      WorkGroupConfiguration:
+        ResultConfiguration:
+          OutputLocation: !Sub "s3://${ProcessedS3Bucket}/athena-query-results/"
+
+Outputs:
+  RawS3BucketName:
+    Value: !Ref RawS3Bucket
+  ProcessedS3BucketName:
+    Value: !Ref ProcessedS3Bucket
+  GlueDatabaseName:
+    Value: !Ref GlueWeatherDatabase
