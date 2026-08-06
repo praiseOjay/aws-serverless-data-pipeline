@@ -50,7 +50,7 @@ def upload_raw_to_s3(payload: dict, bucket_name: str, s3_client=None) -> str:
 
 def lambda_handler(event, context):
     """
-    AWS Lambda Entry point for data ingestion.
+    AWS Lambda entrypoint for Step 1 (Extractor) in Step Functions.
     """
     bucket_name = os.environ.get("RAW_S3_BUCKET", "aws-data-pipeline-raw-bucket")
     payload = fetch_weather_data()
@@ -58,11 +58,11 @@ def lambda_handler(event, context):
     
     return {
         "statusCode": 200,
-        "body": json.dumps({
-            "message": "Raw weather data successfully ingested.",
-            "s3_key": s3_key
-        })
+        "s3_bucket": bucket_name,
+        "s3_key": s3_key,
+        "payload": payload
     }
+
 
 if __name__ == "__main__":  # pragma: no cover
     print("Running ingestion locally...")

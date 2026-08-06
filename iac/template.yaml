@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: AWS Serverless Data Engineering Pipeline (Raw -> Processed S3 -> Glue -> Athena)
+Description: AWS Serverless Data Engineering Pipeline (Step Functions State Machine -> S3 Parquet -> DynamoDB -> API Gateway)
 
 Parameters:
   Environment:
@@ -24,7 +24,16 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  # 2. Ingestion Lambda Function
+  # 2. DynamoDB Table for Fast Key-Value API Lookups
+  WeatherDynamoDBTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: !Sub "weather-analytics-${Environment}"
+      PrimaryKey:
+        Name: id
+        Type: String
+
+  # 3. Pipeline Step Lambdas
   IngesterLambda:
     Type: AWS::Serverless::Function
     Properties:
@@ -39,14 +48,16 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref RawS3Bucket
-      Events:
-        HourlySchedule:
-          Type: Schedule
-          Properties:
-            Schedule: rate(1 hour)
-            Enabled: true
 
-  # 3. Transformer Lambda Function
+  ValidatorLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "data-pipeline-validator-${Environment}"
+      CodeUri: ../src/
+      Handler: validator_lambda.lambda_handler
+      Runtime: python3.11
+      Timeout: 30
+
   TransformerLambda:
     Type: AWS::Serverless::Function
     Properties:
@@ -59,13 +70,67 @@ Resources:
       Environment:
         Variables:
           PROCESSED_S3_BUCKET: !Ref ProcessedS3Bucket
+          DYNAMODB_TABLE: !Ref WeatherDynamoDBTable
       Policies:
         - S3ReadPolicy:
             BucketName: !Ref RawS3Bucket
         - S3CrudPolicy:
             BucketName: !Ref ProcessedS3Bucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WeatherDynamoDBTable
 
-  # 4. Glue Data Catalog Database
+  # 4. API Gateway Handler Lambda
+  ApiHandlerLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "data-pipeline-api-${Environment}"
+      CodeUri: ../src/
+      Handler: api_handler.lambda_handler
+      Runtime: python3.11
+      Timeout: 15
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref WeatherDynamoDBTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref WeatherDynamoDBTable
+      Events:
+        GetLatest:
+          Type: Api
+          Properties:
+            Path: /api/weather/latest
+            Method: GET
+        GetHistory:
+          Type: Api
+          Properties:
+            Path: /api/weather/history
+            Method: GET
+
+  # 5. AWS Step Functions State Machine Orchestrator
+  PipelineStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub "weather-data-pipeline-${Environment}"
+      DefinitionUri: state_machine.asl.json
+      DefinitionSubstitutions:
+        IngesterArn: !GetAtt IngesterLambda.Arn
+        ValidatorArn: !GetAtt ValidatorLambda.Arn
+        TransformerArn: !GetAtt TransformerLambda.Arn
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref IngesterLambda
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ValidatorLambda
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TransformerLambda
+      Events:
+        HourlySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+            Enabled: true
+
+  # 6. Glue Data Catalog Database
   GlueWeatherDatabase:
     Type: AWS::Glue::Database
     Properties:
@@ -74,7 +139,7 @@ Resources:
         Name: !Sub "weather_analytics_db_${Environment}"
         Description: "Catalog database for processed weather parquet dataset"
 
-  # 5. Amazon Athena Workgroup
+  # 7. Amazon Athena Workgroup
   AthenaWorkGroup:
     Type: AWS::Athena::WorkGroup
     Properties:
@@ -89,5 +154,7 @@ Outputs:
     Value: !Ref RawS3Bucket
   ProcessedS3BucketName:
     Value: !Ref ProcessedS3Bucket
-  GlueDatabaseName:
-    Value: !Ref GlueWeatherDatabase
+  DynamoDBTableName:
+    Value: !Ref WeatherDynamoDBTable
+  StateMachineArn:
+    Value: !Ref PipelineStateMachine

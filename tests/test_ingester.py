@@ -37,13 +37,11 @@ def test_upload_raw_to_s3_default_client(s3_client, sample_weather_payload):
     assert s3_key.startswith("raw/year=")
 
 def test_lambda_handler_success(sample_weather_payload):
-    """Test AWS Lambda entrypoint for ingestion returns 200 with s3_key."""
+    """Test AWS Lambda entrypoint for ingestion returns 200 with s3_key and payload."""
     with patch("src.ingester.fetch_weather_data", return_value=sample_weather_payload), \
          patch("src.ingester.upload_raw_to_s3", return_value="raw/year=2026/month=08/day=06/weather_123.json"):
         from src.ingester import lambda_handler
         response = lambda_handler(event={}, context=None)
         assert response["statusCode"] == 200
-        body = json.loads(response["body"])
-        assert body["message"] == "Raw weather data successfully ingested."
-        assert body["s3_key"] == "raw/year=2026/month=08/day=06/weather_123.json"
-
+        assert response["s3_key"] == "raw/year=2026/month=08/day=06/weather_123.json"
+        assert response["payload"] == sample_weather_payload
