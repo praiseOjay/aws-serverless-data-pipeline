@@ -53,3 +53,56 @@ def test_process_s3_raw_object_end_to_end(s3_client, sample_weather_payload):
     parquet_data = response["Body"].read()
     read_df = pq.read_table(io.BytesIO(parquet_data)).to_pandas()
     assert len(read_df) == 3
+
+def test_process_s3_raw_object_default_client(s3_client, sample_weather_payload):
+    """Test process_s3_raw_object initializes default boto3 s3 client when None is provided."""
+    src_bucket = "raw-default-bucket"
+    dest_bucket = "processed-default-bucket"
+    s3_client.create_bucket(Bucket=src_bucket)
+    s3_client.create_bucket(Bucket=dest_bucket)
+
+    src_key = "raw/year=2026/month=07/day=29/weather_456.json"
+    s3_client.put_object(
+        Bucket=src_bucket,
+        Key=src_key,
+        Body=json.dumps(sample_weather_payload).encode("utf-8")
+    )
+
+    dest_key = process_s3_raw_object(src_bucket, src_key, dest_bucket)
+    assert dest_key.startswith("processed/year=")
+
+def test_lambda_handler_s3_event(s3_client, sample_weather_payload, monkeypatch):
+    """Test AWS Lambda handler processes incoming S3 ObjectCreated event."""
+    src_bucket = "raw-event-bucket"
+    dest_bucket = "processed-event-bucket"
+    monkeypatch.setenv("PROCESSED_S3_BUCKET", dest_bucket)
+    
+    s3_client.create_bucket(Bucket=src_bucket)
+    s3_client.create_bucket(Bucket=dest_bucket)
+
+    src_key = "raw/year=2026/month=07/day=29/weather_789.json"
+    s3_client.put_object(
+        Bucket=src_bucket,
+        Key=src_key,
+        Body=json.dumps(sample_weather_payload).encode("utf-8")
+    )
+
+    s3_event = {
+        "Records": [
+            {
+                "s3": {
+                    "bucket": {"name": src_bucket},
+                    "object": {"key": src_key}
+                }
+            }
+        ]
+    }
+
+    from src.transformer import lambda_handler
+    response = lambda_handler(s3_event, None)
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    assert len(body["processed_keys"]) == 1
+    assert body["processed_keys"][0].startswith("processed/")
+
+

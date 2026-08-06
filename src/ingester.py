@@ -64,7 +64,8 @@ def lambda_handler(event, context):
         })
     }
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     print("Running ingestion locally...")
     data = fetch_weather_data()
     print(f"Ingested weather data for lat={data['latitude']}, lon={data['longitude']}")
+
