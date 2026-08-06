@@ -42,6 +42,12 @@ An enterprise-grade, event-driven serverless data pipeline and real-time analyti
 
 ---
 
+## 📊 Dashboard Preview
+
+![AWS Serverless Pipeline Dashboard](docs/images/dashboard_preview.png)
+
+---
+
 ## 🛠️ Tech Stack & Prerequisites
 
 - **Language**: Python 3.11+
