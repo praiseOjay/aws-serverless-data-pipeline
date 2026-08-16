@@ -1,5 +1,5 @@
-// Configuration: Change this to your deployed AWS API Gateway Endpoint URL when deployed
-const API_ENDPOINT = "https://your-api-gateway-id.execute-api.us-east-1.amazonaws.com/Prod/api/weather/history";
+// Configuration: Live deployed AWS API Gateway Endpoint URL
+const API_ENDPOINT = "https://bbziio2ys5.execute-api.eu-west-2.amazonaws.com/Prod/api/weather/history";
 
 let chartInstance = null;
 
