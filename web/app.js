@@ -34,9 +34,17 @@ function generateMockWeatherData() {
 }
 
 function updateKPIs(latest) {
-    document.getElementById("kpi-temp").textContent = `${latest.temp} °C`;
-    document.getElementById("kpi-humidity").textContent = `${latest.humidity} %`;
-    document.getElementById("kpi-wind").textContent = `${latest.wind} km/h`;
+    const tempVal = Number(latest.temp);
+    const windVal = Number(latest.wind);
+    const humidityVal = Number(latest.humidity);
+
+    const formattedTemp = !isNaN(tempVal) ? tempVal.toFixed(1) : latest.temp;
+    const formattedWind = !isNaN(windVal) ? windVal.toFixed(1) : latest.wind;
+    const formattedHumidity = !isNaN(humidityVal) ? Math.round(humidityVal) : latest.humidity;
+
+    document.getElementById("kpi-temp").textContent = `${formattedTemp} °C`;
+    document.getElementById("kpi-humidity").textContent = `${formattedHumidity} %`;
+    document.getElementById("kpi-wind").textContent = `${formattedWind} km/h`;
     document.getElementById("kpi-temp-sub").textContent = `Updated at ${latest.time} UTC`;
 }
 
@@ -129,9 +137,9 @@ async function loadDashboardData() {
         if (!Array.isArray(rawItems) || rawItems.length === 0) throw new Error("No data returned from API.");
 
         const hours = rawItems.map(item => new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-        const temps = rawItems.map(item => Number(item.temperature_2m));
-        const humidity = rawItems.map(item => Number(item.relative_humidity_2m));
-        const wind = rawItems.map(item => Number(item.wind_speed_10m));
+        const temps = rawItems.map(item => Number(Number(item.temperature_2m).toFixed(1)));
+        const humidity = rawItems.map(item => Math.round(Number(item.relative_humidity_2m)));
+        const wind = rawItems.map(item => Number(Number(item.wind_speed_10m).toFixed(1)));
 
         const data = {
             hours, temps, humidity, wind,
