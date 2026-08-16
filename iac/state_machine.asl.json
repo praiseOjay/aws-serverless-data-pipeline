@@ -1,0 +1,36 @@
+{
+  "Comment": "AWS Serverless Data Pipeline Orchestrator State Machine",
+  "StartAt": "IngestData",
+  "States": {
+    "IngestData": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${IngesterArn}"
+      },
+      "Next": "ValidateData"
+    },
+    "ValidateData": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${ValidatorArn}"
+      },
+      "Next": "TransformData"
+    },
+    "TransformData": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${TransformerArn}"
+      },
+      "End": true
+    }
+  }
+}

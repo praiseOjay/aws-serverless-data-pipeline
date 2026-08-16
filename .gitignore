@@ -59,3 +59,5 @@ venv.bak/
 data/
 *.parquet
 *.json
+!iac/state_machine.asl.json
+
