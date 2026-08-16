@@ -32,6 +32,60 @@ function getWindUnit() {
     return currentUnitSystem === "imperial" ? "mph" : "km/h";
 }
 
+// Resolve Exact Location Name & Coordinates
+function resolveLocationName(item) {
+    if (!item) return "London, UK (51.51°N, 0.13°W)";
+    if (item.location) return item.location;
+    
+    const nLat = Number(item.latitude);
+    const nLon = Number(item.longitude);
+    
+    if (isNaN(nLat) || isNaN(nLon)) return "London, UK (51.51°N, 0.13°W)";
+    
+    // Check if coordinates match London ingestion point (~51.51, -0.13)
+    if (Math.abs(nLat - 51.5) < 0.5 && Math.abs(nLon - (-0.12)) < 0.5) {
+        return `London, UK (${nLat.toFixed(2)}°N, ${Math.abs(nLon).toFixed(2)}°W)`;
+    }
+    
+    const latStr = nLat >= 0 ? `${nLat.toFixed(2)}°N` : `${Math.abs(nLat).toFixed(2)}°S`;
+    const lonStr = nLon >= 0 ? `${nLon.toFixed(2)}°E` : `${Math.abs(nLon).toFixed(2)}°W`;
+    return `${latStr}, ${lonStr}`;
+}
+
+// Find the Weather Record Closest to the Current Real-World Hour
+function findCurrentWeatherRecord(items) {
+    if (!items || items.length === 0) return null;
+    
+    const now = Date.now();
+    let closestItem = items[0];
+    let smallestDiff = Math.abs(new Date(closestItem.timestamp).getTime() - now);
+
+    for (let i = 1; i < items.length; i++) {
+        const itemTime = new Date(items[i].timestamp).getTime();
+        const diff = Math.abs(itemTime - now);
+        if (diff < smallestDiff) {
+            smallestDiff = diff;
+            closestItem = items[i];
+        }
+    }
+    return closestItem;
+}
+
+// Format Accurate Date & Time in UTC
+function formatObservationTime(timestampStr) {
+    if (!timestampStr) return "Just now";
+    const date = new Date(timestampStr);
+    
+    const hours = date.getUTCHours().toString().padStart(2, '0');
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+    
+    const day = date.getUTCDate();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = months[date.getUTCMonth()];
+    
+    return `${month} ${day}, ${hours}:${minutes} UTC`;
+}
+
 // Weather Condition Interpreter
 function determineWeatherCondition(tempC, humidity, windKmh) {
     if (windKmh > 25) {
@@ -81,7 +135,6 @@ function animateValue(elementId, start, end, duration, formatFn) {
     function update(currentTime) {
         const elapsed = currentTime - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        // Ease out quadratic
         const easeProgress = 1 - (1 - progress) * (1 - progress);
         const current = start + (end - start) * easeProgress;
 
@@ -98,10 +151,12 @@ function animateValue(elementId, start, end, duration, formatFn) {
 }
 
 // Update Top KPI Cards
-function updateKPIs(latest) {
-    const rawTempC = Number(latest.temp);
-    const rawWindKmh = Number(latest.wind);
-    const rawHumidity = Number(latest.humidity);
+function updateKPIs(currentRecord) {
+    if (!currentRecord) return;
+
+    const rawTempC = Number(currentRecord.temperature_2m);
+    const rawWindKmh = Number(currentRecord.wind_speed_10m);
+    const rawHumidity = Number(currentRecord.relative_humidity_2m);
 
     const displayTemp = convertTemp(rawTempC);
     const displayWind = convertWind(rawWindKmh);
@@ -111,8 +166,10 @@ function updateKPIs(latest) {
     animateValue("kpi-humidity", previousValues.humidity || rawHumidity * 0.8, rawHumidity, 800, (v) => `${Math.round(v)} %`);
     animateValue("kpi-wind", previousValues.wind ? convertWind(previousValues.wind) : displayWind * 0.8, displayWind, 800, (v) => `${v.toFixed(1)} ${getWindUnit()}`);
 
-    // Update Subtext & Badges
-    document.getElementById("kpi-temp-sub").textContent = `London, UK • Updated ${latest.time} UTC`;
+    // Update Accurate Location and Time Subtext
+    const locationName = resolveLocationName(currentRecord);
+    const formattedTime = formatObservationTime(currentRecord.timestamp);
+    document.getElementById("kpi-temp-sub").textContent = `${locationName} • Updated ${formattedTime}`;
     
     const humSub = document.getElementById("kpi-humidity-sub");
     if (humSub) humSub.textContent = getHumidityDescription(rawHumidity);
@@ -135,8 +192,15 @@ function updateKPIs(latest) {
 function updateAnalyticsStrip(items) {
     if (!items || items.length === 0) return;
 
-    // Calculate over the last 24 records (or all available)
-    const windowItems = items.slice(0, 24);
+    // Calculate over the 24 hours around current time
+    const chronological = [...items].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const currentRecord = findCurrentWeatherRecord(chronological);
+    const currentIndex = chronological.indexOf(currentRecord);
+    
+    let startIdx = Math.max(0, currentIndex - 12);
+    let endIdx = Math.min(chronological.length, startIdx + 24);
+    const windowItems = chronological.slice(startIdx, endIdx);
+
     const temps = windowItems.map(item => Number(item.temperature_2m)).filter(v => !isNaN(v));
     const humidities = windowItems.map(item => Number(item.relative_humidity_2m)).filter(v => !isNaN(v));
     const winds = windowItems.map(item => Number(item.wind_speed_10m)).filter(v => !isNaN(v));
@@ -176,20 +240,41 @@ function startEventBridgeCountdown() {
     setInterval(updateCountdown, 1000);
 }
 
-// Render / Re-render Chart.js
+// Render / Re-render Chart.js with Chronological Slicing
 function renderChart() {
     if (!rawDataset || rawDataset.length === 0) return;
 
-    // Slice dataset by selected time range
-    const sliced = rawDataset.slice(0, selectedTimeHours);
-    
-    // Sort chronologically for chart display
-    const chronological = [...sliced].reverse();
+    // Sort chronologically from past to future
+    const chronological = [...rawDataset].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-    const labels = chronological.map(item => new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    const rawTemps = chronological.map(item => Number(item.temperature_2m));
-    const rawHumidity = chronological.map(item => Number(item.relative_humidity_2m));
-    const rawWind = chronological.map(item => Number(item.wind_speed_10m));
+    // Find current hour index
+    const currentRecord = findCurrentWeatherRecord(chronological);
+    const currentIndex = chronological.indexOf(currentRecord);
+
+    // Slice time window centered on current time
+    let startIndex, endIndex;
+    if (selectedTimeHours >= chronological.length) {
+        startIndex = 0;
+        endIndex = chronological.length;
+    } else {
+        const pastOffset = Math.floor(selectedTimeHours / 2);
+        startIndex = Math.max(0, currentIndex - pastOffset);
+        endIndex = Math.min(chronological.length, startIndex + selectedTimeHours);
+        if (endIndex - startIndex < selectedTimeHours && startIndex > 0) {
+            startIndex = Math.max(0, endIndex - selectedTimeHours);
+        }
+    }
+
+    const windowDataset = chronological.slice(startIndex, endIndex);
+
+    const labels = windowDataset.map(item => {
+        const d = new Date(item.timestamp);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    });
+
+    const rawTemps = windowDataset.map(item => Number(item.temperature_2m));
+    const rawHumidity = windowDataset.map(item => Number(item.relative_humidity_2m));
+    const rawWind = windowDataset.map(item => Number(item.wind_speed_10m));
 
     const convertedTemps = rawTemps.map(v => Number(convertTemp(v).toFixed(1)));
     const convertedWind = rawWind.map(v => Number(convertWind(v).toFixed(1)));
@@ -325,10 +410,13 @@ function generateMockWeatherData() {
     const items = [];
     const now = new Date();
     for (let i = 0; i < 48; i++) {
-        const time = new Date(now.getTime() - i * 3600 * 1000);
+        const time = new Date(now.getTime() - (24 - i) * 3600 * 1000);
         items.push({
             id: String(Math.floor(time.getTime() / 1000)),
             timestamp: time.toISOString(),
+            latitude: 51.5074,
+            longitude: -0.1278,
+            location: "London, UK (51.51°N, 0.13°W)",
             temperature_2m: Number((18 + Math.sin(i / 3) * 4 + Math.random() * 0.5).toFixed(1)),
             relative_humidity_2m: Math.round(65 + Math.cos(i / 4) * 15 + Math.random() * 3),
             wind_speed_10m: Number((8 + Math.random() * 6).toFixed(1))
@@ -364,16 +452,8 @@ async function loadDashboardData() {
     }
 
     if (rawDataset.length > 0) {
-        const latestItem = rawDataset[0];
-        const latestTime = new Date(latestItem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        updateKPIs({
-            temp: latestItem.temperature_2m,
-            humidity: latestItem.relative_humidity_2m,
-            wind: latestItem.wind_speed_10m,
-            time: latestTime
-        });
-
+        const currentRecord = findCurrentWeatherRecord(rawDataset);
+        updateKPIs(currentRecord);
         updateAnalyticsStrip(rawDataset);
         renderChart();
     }
@@ -390,14 +470,8 @@ function initControls() {
             unitLabel.textContent = currentUnitSystem === "metric" ? "Metric (°C, km/h)" : "Imperial (°F, mph)";
             
             if (rawDataset.length > 0) {
-                const latestItem = rawDataset[0];
-                const latestTime = new Date(latestItem.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                updateKPIs({
-                    temp: latestItem.temperature_2m,
-                    humidity: latestItem.relative_humidity_2m,
-                    wind: latestItem.wind_speed_10m,
-                    time: latestTime
-                });
+                const currentRecord = findCurrentWeatherRecord(rawDataset);
+                updateKPIs(currentRecord);
                 updateAnalyticsStrip(rawDataset);
                 renderChart();
             }

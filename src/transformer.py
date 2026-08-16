@@ -94,6 +94,7 @@ def write_records_to_dynamodb(df: pd.DataFrame, table_name: str, dynamodb_resour
                 "latitude": Decimal(str(row["latitude"])),
                 "longitude": Decimal(str(row["longitude"])),
                 "timezone": str(row["timezone"]),
+                "location": "London, UK (51.51°N, 0.13°W)",
                 "temperature_2m": Decimal(str(round(float(row["temperature_2m"]), 1))),
                 "relative_humidity_2m": int(row["relative_humidity_2m"]),
                 "wind_speed_10m": Decimal(str(round(float(row["wind_speed_10m"]), 1))),
