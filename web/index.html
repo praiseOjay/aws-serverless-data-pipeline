@@ -16,7 +16,7 @@
 <body>
     <div class="app-container">
         <!-- Header -->
-        <header class="app-header">
+        <header class="app-header glass">
             <div class="brand">
                 <div class="logo-icon">🚀</div>
                 <div>
@@ -25,12 +25,19 @@
                 </div>
             </div>
             <div class="header-actions">
+                <div class="condition-badge" id="condition-badge">
+                    <span id="condition-icon">🌤️</span>
+                    <span id="condition-text">Fetching live data...</span>
+                </div>
+                <button id="unit-toggle" class="btn btn-secondary" title="Switch units between Metric and Imperial">
+                    <span class="icon">🔄</span> <span id="unit-label">Metric (°C, km/h)</span>
+                </button>
                 <div class="status-badge" id="pipeline-status">
                     <span class="status-dot green"></span>
                     <span class="status-text">Step Functions Active</span>
                 </div>
                 <button id="refresh-btn" class="btn btn-primary">
-                    <span class="icon">🔄</span> Refresh Data
+                    <span class="icon" id="refresh-icon">🔄</span> Refresh Data
                 </button>
             </div>
         </header>
@@ -74,16 +81,70 @@
             </div>
         </section>
 
+        <!-- Deeper Analytics & Insights Summary Strip -->
+        <section class="analytics-strip glass">
+            <div class="stat-item">
+                <span class="stat-icon">📊</span>
+                <div>
+                    <span class="stat-label">24h Temperature Range</span>
+                    <span class="stat-value" id="stat-temp-range">High: -- | Low: --</span>
+                </div>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-icon">💧</span>
+                <div>
+                    <span class="stat-label">Average Humidity</span>
+                    <span class="stat-value" id="stat-avg-humidity">-- %</span>
+                </div>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-icon">💨</span>
+                <div>
+                    <span class="stat-label">Peak Wind Gust</span>
+                    <span class="stat-value" id="stat-peak-wind">-- km/h</span>
+                </div>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item highlight-sync">
+                <span class="stat-icon">⏱️</span>
+                <div>
+                    <span class="stat-label">Next EventBridge Trigger</span>
+                    <span class="stat-value text-amber" id="stat-next-sync">in ~45m</span>
+                </div>
+            </div>
+        </section>
+
         <!-- Main Content Area: Charts & Pipeline Steps -->
         <div class="dashboard-grid">
-            <!-- Charts Section -->
+            <!-- Charts Section with Interactive Controls -->
             <main class="chart-section glass">
                 <div class="section-header">
-                    <h2>Hourly Weather Forecast Trends</h2>
-                    <div class="chart-controls">
-                        <span class="badge">Open-Meteo API</span>
+                    <div>
+                        <h2>Weather Forecast Trends</h2>
+                        <span class="sub-header-label">Event-Driven Ingestion • Open-Meteo REST API</span>
+                    </div>
+                    <!-- Time Range Filter Pills -->
+                    <div class="control-group time-filters" id="time-filter-group">
+                        <button class="chip" data-hours="6">6h</button>
+                        <button class="chip" data-hours="12">12h</button>
+                        <button class="chip active" data-hours="24">24h</button>
+                        <button class="chip" data-hours="168">7d (All)</button>
                     </div>
                 </div>
+
+                <!-- Metric Toggle Pills -->
+                <div class="metric-toolbar">
+                    <span class="toolbar-label">Chart Metric:</span>
+                    <div class="control-group metric-filters" id="metric-filter-group">
+                        <button class="pill active" data-metric="all">Combined (All)</button>
+                        <button class="pill" data-metric="temp">🌡️ Temperature</button>
+                        <button class="pill" data-metric="humidity">💧 Humidity</button>
+                        <button class="pill" data-metric="wind">💨 Wind Speed</button>
+                    </div>
+                </div>
+
                 <div class="chart-container">
                     <canvas id="weatherChart"></canvas>
                 </div>
