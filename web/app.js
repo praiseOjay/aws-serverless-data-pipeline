@@ -33,6 +33,20 @@ function generateMockWeatherData() {
     };
 }
 
+function getWindDescription(speed) {
+    if (speed < 5) return "Calm Air Condition";
+    if (speed < 12) return "Light Breeze Condition";
+    if (speed < 20) return "Gentle Breeze Condition";
+    if (speed < 29) return "Moderate Wind Condition";
+    return "Fresh Wind Condition";
+}
+
+function getHumidityDescription(humidity) {
+    if (humidity < 30) return "Low Dry Humidity Level";
+    if (humidity <= 60) return "Optimal Comfort Level";
+    return "High Humidity Level";
+}
+
 function updateKPIs(latest) {
     const tempVal = Number(latest.temp);
     const windVal = Number(latest.wind);
@@ -45,7 +59,17 @@ function updateKPIs(latest) {
     document.getElementById("kpi-temp").textContent = `${formattedTemp} °C`;
     document.getElementById("kpi-humidity").textContent = `${formattedHumidity} %`;
     document.getElementById("kpi-wind").textContent = `${formattedWind} km/h`;
-    document.getElementById("kpi-temp-sub").textContent = `Updated at ${latest.time} UTC`;
+
+    document.getElementById("kpi-temp-sub").textContent = `London, UK • Updated ${latest.time} UTC`;
+    
+    const humSub = document.getElementById("kpi-humidity-sub");
+    if (humSub) humSub.textContent = getHumidityDescription(humidityVal);
+    
+    const windSub = document.getElementById("kpi-wind-sub");
+    if (windSub) windSub.textContent = getWindDescription(windVal);
+    
+    const healthSub = document.getElementById("kpi-health-sub");
+    if (healthSub) healthSub.textContent = "Extract • Validate • Transform (All Active)";
 }
 
 function initChart(data) {
