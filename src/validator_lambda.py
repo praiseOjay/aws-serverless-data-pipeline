@@ -1,5 +1,8 @@
 import json
-from src.utils.validators import validate_raw_weather_payload, DataValidationError
+try:
+    from utils.validators import validate_raw_weather_payload, DataValidationError
+except ModuleNotFoundError:
+    from src.utils.validators import validate_raw_weather_payload, DataValidationError
 
 def lambda_handler(event, context):
     """

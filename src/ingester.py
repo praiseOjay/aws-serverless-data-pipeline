@@ -3,7 +3,10 @@ import os
 import requests
 from datetime import datetime, timezone
 import boto3
-from src.utils.validators import validate_raw_weather_payload
+try:
+    from utils.validators import validate_raw_weather_payload
+except ModuleNotFoundError:
+    from src.utils.validators import validate_raw_weather_payload
 
 OPEN_METEO_API_URL = "https://api.open-meteo.com/v1/forecast"
 

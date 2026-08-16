@@ -7,7 +7,10 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 from datetime import datetime, timezone
-from src.utils.validators import validate_raw_weather_payload
+try:
+    from utils.validators import validate_raw_weather_payload
+except ModuleNotFoundError:
+    from src.utils.validators import validate_raw_weather_payload
 
 def transform_json_to_dataframe(payload: dict) -> pd.DataFrame:
     """
