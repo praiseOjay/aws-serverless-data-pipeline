@@ -8,7 +8,7 @@
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An enterprise-grade, event-driven serverless data pipeline and real-time analytics platform built on **Amazon Web Services (AWS)** using **Test-Driven Development (TDD)** and **Infrastructure as Code (AWS SAM)**. 
+A production-grade, event-driven serverless data pipeline and real-time analytics platform built on **Amazon Web Services (AWS)** using **Test-Driven Development (TDD)** and **Infrastructure as Code (AWS SAM)**. 
 
 The system orchestrates automated multi-stage telemetry ingestion, data validation, dual-engine storage (**OLAP Columnar Parquet in S3** + **OLTP Key-Value in DynamoDB**), ad-hoc SQL querying via **AWS Glue & Amazon Athena**, and serves real-time insights through a serverless **REST API** to an interactive, dark-mode analytics dashboard.
 
@@ -82,7 +82,7 @@ The system orchestrates automated multi-stage telemetry ingestion, data validati
 - **Dual-Engine Storage Architecture**:
   - **OLAP Data Lake**: High-performance **Apache Parquet** format compressed with Snappy, partitioned by `year/month/day`, registered in **AWS Glue Data Catalog** for fast serverless querying via **Amazon Athena**.
   - **OLTP Real-Time Store**: Ultra-low-latency (<10ms) **Amazon DynamoDB** table storing point-in-time observations and historical query time-series records.
-- **RESTful Analytics API**: **AWS API Gateway** backed by an optimized Python Lambda handler exposing high-availability endpoints with CORS support.
+- **RESTful Analytics API**: **AWS API Gateway** backed by an optimised Python Lambda handler exposing high-availability endpoints with CORS support.
 - **Live Glassmorphism Analytics Dashboard**:
   - Dynamic KPI metric cards with smooth numerical count-up animations and contextual telemetry subtexts.
   - Multi-timeframe visualizer (6-hour, 12-hour, 24-hour, 48-hour, and 7-day ranges).
@@ -91,7 +91,7 @@ The system orchestrates automated multi-stage telemetry ingestion, data validati
   - Statistical summary telemetry strip displaying minimum, maximum, sample mean, and real-time directional trend.
   - Searchable tabular historical data grid with one-click **CSV Export**.
 - **100% TDD Code Coverage**: Entire data transformation, ingestion, validation, and API routing suite backed by unit tests using `pytest` and `moto`.
-- **Infrastructure as Code (IaC)**: Fully parameterized **AWS SAM** template supporting multiple environment stages (`dev`, `prod`).
+- **Infrastructure as Code (IaC)**: Fully parameterised **AWS SAM** template supporting multiple environment stages (`dev`, `prod`).
 - **Automated CI/CD**: Matrix-tested GitHub Actions workflow validating code across Python 3.11 and 3.12 on every push and pull request.
 
 ---
@@ -191,7 +191,7 @@ stateDiagram-v2
         VectorizedDataFrameTransform --> UpsertDynamoDBTable: Latest State & Hourly History
     }
     
-    TransformAndLoad --> PipelineSuccess: Data Synchronized
+    TransformAndLoad --> PipelineSuccess: Data Synchronised
     IngestWeatherData --> PipelineFailed: HTTP / S3 Failure (Retries Exhausted)
     
     PipelineSuccess --> [*]
@@ -300,7 +300,7 @@ ORDER BY year DESC, month DESC, day DESC;
 This project strictly follows **Test-Driven Development (TDD)** principles. All features and data processing routines are developed against unit test suites before implementation.
 
 ### Test Coverage Breakdown
-- `test_ingester.py`: Verifies Open-Meteo REST API requests, S3 bucket partitioning, error handling, and JSON serialization.
+- `test_ingester.py`: Verifies Open-Meteo REST API requests, S3 bucket partitioning, error handling, and JSON serialisation.
 - `test_validator_lambda.py` & `test_validators.py`: Verifies JSON schema structure, field type validation, null handling, and physics boundary rules.
 - `test_transformer.py`: Verifies Pandas/PyArrow Parquet file generation, date-partitioned S3 storage, and DynamoDB batch records loading.
 - `test_api_handler.py`: Verifies API Gateway event parsing, `/latest` and `/history` DynamoDB lookups, error codes, and CORS headers.
@@ -331,7 +331,7 @@ The CI pipeline (`.github/workflows/ci.yml`) automatically executes on every pul
 # Validate CloudFormation / SAM syntax
 sam validate -t iac/template.yaml
 
-# Build SAM Lambda artifacts
+# Build SAM Lambda artefacts
 sam build -t iac/template.yaml
 ```
 
