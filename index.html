@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Serverless Data Pipeline - Real-time Weather Analytics</title>
+    <meta name="description" content="Production-grade, event-driven serverless weather data analytics pipeline powered by AWS Step Functions, Lambda, DynamoDB, and Athena.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header glass">
+            <div class="brand">
+                <div class="logo-icon">🚀</div>
+                <div>
+                    <h1>AWS Serverless Pipeline Dashboard</h1>
+                    <p class="subtitle">Step Functions Orchestrated • Real-Time Weather Analytics</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="condition-badge" id="condition-badge">
+                    <span id="condition-icon">🌤️</span>
+                    <span id="condition-text">Fetching live data...</span>
+                </div>
+                <button id="unit-toggle" class="btn btn-secondary" title="Switch units between Metric and Imperial">
+                    <span class="icon">🔄</span> <span id="unit-label">Metric (°C, km/h)</span>
+                </button>
+                <div class="status-badge" id="pipeline-status">
+                    <span class="status-dot green"></span>
+                    <span class="status-text">Step Functions Active</span>
+                </div>
+                <button id="refresh-btn" class="btn btn-primary">
+                    <span class="icon" id="refresh-icon">🔄</span> Refresh Data
+                </button>
+            </div>
+        </header>
+
+        <!-- KPI Metric Cards -->
+        <section class="kpi-grid">
+            <div class="kpi-card glass">
+                <div class="kpi-header">
+                    <span class="kpi-title">Current Temperature</span>
+                    <span class="kpi-icon">🌡️</span>
+                </div>
+                <div class="kpi-value" id="kpi-temp">-- °C</div>
+                <div class="kpi-subtext" id="kpi-temp-sub">London, UK • Updated --:-- UTC</div>
+            </div>
+
+            <div class="kpi-card glass">
+                <div class="kpi-header">
+                    <span class="kpi-title">Relative Humidity</span>
+                    <span class="kpi-icon">💧</span>
+                </div>
+                <div class="kpi-value" id="kpi-humidity">-- %</div>
+                <div class="kpi-subtext" id="kpi-humidity-sub">Optimal Comfort Level</div>
+            </div>
+
+            <div class="kpi-card glass">
+                <div class="kpi-header">
+                    <span class="kpi-title">Wind Speed</span>
+                    <span class="kpi-icon">💨</span>
+                </div>
+                <div class="kpi-value" id="kpi-wind">-- km/h</div>
+                <div class="kpi-subtext" id="kpi-wind-sub">Gentle Breeze</div>
+            </div>
+
+            <div class="kpi-card glass">
+                <div class="kpi-header">
+                    <span class="kpi-title">Pipeline Health</span>
+                    <span class="kpi-icon">🛡️</span>
+                </div>
+                <div class="kpi-value highlight-green" id="kpi-health">100% Pass</div>
+                <div class="kpi-subtext" id="kpi-health-sub">Extract • Validate • Transform (All Active)</div>
+            </div>
+        </section>
+
+        <!-- Deeper Analytics & Insights Summary Strip -->
+        <section class="analytics-strip glass">
+            <div class="stat-item">
+                <span class="stat-icon">📊</span>
+                <div>
+                    <span class="stat-label">24h Temperature Range</span>
+                    <span class="stat-value" id="stat-temp-range">High: -- | Low: --</span>
+                </div>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-icon">💧</span>
+                <div>
+                    <span class="stat-label">Average Humidity</span>
+                    <span class="stat-value" id="stat-avg-humidity">-- %</span>
+                </div>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-icon">💨</span>
+                <div>
+                    <span class="stat-label">Peak Wind Gust</span>
+                    <span class="stat-value" id="stat-peak-wind">-- km/h</span>
+                </div>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item highlight-sync">
+                <span class="stat-icon">⏱️</span>
+                <div>
+                    <span class="stat-label">Next EventBridge Trigger</span>
+                    <span class="stat-value text-amber" id="stat-next-sync">in ~45m</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Content Area: Charts & Pipeline Steps -->
+        <div class="dashboard-grid">
+            <!-- Charts Section with Interactive Controls -->
+            <main class="chart-section glass">
+                <div class="section-header">
+                    <div>
+                        <h2>Weather Forecast Trends</h2>
+                        <span class="sub-header-label">Event-Driven Ingestion • Open-Meteo REST API</span>
+                    </div>
+                    <!-- Time Range Filter Pills -->
+                    <div class="control-group time-filters" id="time-filter-group">
+                        <button class="chip" data-hours="6">6h</button>
+                        <button class="chip" data-hours="12">12h</button>
+                        <button class="chip active" data-hours="24">24h</button>
+                        <button class="chip" data-hours="168">7d (All)</button>
+                    </div>
+                </div>
+
+                <!-- Metric Toggle Pills -->
+                <div class="metric-toolbar">
+                    <span class="toolbar-label">Chart Metric:</span>
+                    <div class="control-group metric-filters" id="metric-filter-group">
+                        <button class="pill active" data-metric="all">Combined (All)</button>
+                        <button class="pill" data-metric="temp">🌡️ Temperature</button>
+                        <button class="pill" data-metric="humidity">💧 Humidity</button>
+                        <button class="pill" data-metric="wind">💨 Wind Speed</button>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="weatherChart"></canvas>
+                </div>
+            </main>
+
+            <!-- Step Functions Visualizer & Architecture Panel -->
+            <aside class="pipeline-panel glass">
+                <div class="section-header">
+                    <h2>Step Functions Workflow</h2>
+                </div>
+                <div class="step-flow">
+                    <div class="step-item active">
+                        <div class="step-icon">1</div>
+                        <div class="step-details">
+                            <h3>ExtractData Lambda</h3>
+                            <p>Ingests raw payload from Open-Meteo REST API into S3 Raw Zone.</p>
+                            <span class="step-tag">Duration ~250ms</span>
+                        </div>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="step-item active">
+                        <div class="step-icon">2</div>
+                        <div class="step-details">
+                            <h3>ValidateData Lambda</h3>
+                            <p>Enforces schema validation contracts & data quality bounds.</p>
+                            <span class="step-tag">TDD Contract Valid</span>
+                        </div>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="step-item active">
+                        <div class="step-icon">3</div>
+                        <div class="step-details">
+                            <h3>Transform & Load Lambda</h3>
+                            <p>Converts payload to Apache Parquet in S3 & writes to DynamoDB.</p>
+                            <span class="step-tag">Parquet + DynamoDB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tech-stack-footer">
+                    <h4>Cloud Stack & Storage</h4>
+                    <div class="tags">
+                        <span class="tag">AWS SAM</span>
+                        <span class="tag">Step Functions</span>
+                        <span class="tag">DynamoDB</span>
+                        <span class="tag">S3 Parquet</span>
+                        <span class="tag">Athena</span>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
